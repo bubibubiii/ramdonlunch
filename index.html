@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>午餐隨機揀選器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light gray background */
+        }
+        /* Removed overflow-y-auto specific styles as it's no longer needed for optionsList */
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col gap-8 border border-gray-100">
+        <h1 class="text-5xl font-extrabold text-center text-gray-800 mb-2 leading-tight">
+            午餐隨機揀選器 🍽️
+        </h1>
+
+        <div id="result" class="text-center p-6 bg-yellow-100 border border-yellow-300 rounded-2xl text-yellow-800 text-4xl font-extrabold hidden shadow-inner transition-all duration-300 ease-in-out">
+            </div>
+
+        <div class="flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-gray-700">您的午餐選項：</h2>
+                <button
+                    id="removeAllOptionsBtn"
+                    class="bg-gray-100 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-2 transition duration-200 shadow-sm whitespace-nowrap"
+                >
+                    🗑️ 移除所有選項
+                </button>
+            </div>
+            <ul id="optionsList" class="flex flex-wrap gap-2 p-2 rounded-xl border border-gray-200 bg-gray-50">
+                <li id="noOptionsMessage" class="text-gray-500 text-center py-4 w-full">目前沒有選項。請新增一些！</li>
+            </ul>
+        </div>
+
+        <button
+            id="pickMealBtn"
+            class="bg-green-600 text-white text-3xl font-bold py-5 rounded-2xl hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-offset-2 transition duration-300 shadow-xl transform hover:scale-105 active:scale-95"
+        >
+            今日食乜好？
+        </button>
+
+        <div class="flex flex-col gap-4 pt-4 border-t border-gray-100">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-gray-700">快速加入預設選項：</h2>
+                <button
+                    id="addAllOptionsBtn"
+                    class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition duration-200 shadow-sm whitespace-nowrap"
+                >
+                    ➕ 加入所有預設選項
+                </button>
+            </div>
+            <div id="predefinedOptions" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+                </div>
+        </div>
+
+        <div class="flex flex-col gap-4">
+            <label for="newOption" class="text-xl font-semibold text-gray-700">新增您的午餐選項：</label>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <input
+                    type="text"
+                    id="newOption"
+                    placeholder="例如：義大利麵、壽司"
+                    class="flex-grow p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 text-lg"
+                >
+                <button
+                    id="addOptionBtn"
+                    class="bg-blue-600 text-white px-6 py-4 rounded-xl font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 shadow-md text-lg"
+                >
+                    新增
+                </button>
+            </div>
+        </div>
+
+        <div id="messageBox" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden z-50">
+            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform scale-100 transition-all duration-300 ease-out">
+                <p id="messageText" class="text-xl font-semibold text-gray-800 mb-6"></p>
+                <button id="closeMessageBoxBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 shadow-md">
+                    確定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get DOM elements
+        const newOptionInput = document.getElementById('newOption');
+        const addOptionBtn = document.getElementById('addOptionBtn');
+        const predefinedOptionsDiv = document.getElementById('predefinedOptions');
+        const optionsList = document.getElementById('optionsList');
+        const pickMealBtn = document.getElementById('pickMealBtn');
+        const resultDiv = document.getElementById('result');
+        const noOptionsMessage = document.getElementById('noOptionsMessage');
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+        const closeMessageBoxBtn = document.getElementById('closeMessageBoxBtn');
+        const addAllOptionsBtn = document.getElementById('addAllOptionsBtn');
+        const removeAllOptionsBtn = document.getElementById('removeAllOptionsBtn'); // New button element
+
+        // Array to store lunch options
+        let mealOptions = [];
+
+        // Predefined lunch options (updated with Emojis)
+        const predefinedMeals = [
+            '兩餸飯 🍚�',
+            '譚仔 🍜🌶️',
+            '飲茶 🥟🫖',
+            '茶餐廳 🇭🇰',
+            '大快活 🍽️',
+            '華御結 🍙',
+            '車仔麵 🍜',
+            '燒味飯 🍖🍚',
+            '雲吞麵 🥟🍜',
+            'McDonald\'s 🍔🍟',
+            'MOS Burger 🍔',
+            'Pizza 🍕',
+            '日本菜 🇯🇵',
+            '壽司郎 🍣',
+            '韓國菜 🇰🇷',
+            'KFC 🍗',
+            'Subway 🥪',
+            '意粉 🍝',
+            '7-11 🏪',
+            '泰國菜 🇹🇭🌶️',
+            '越南菜 🇻🇳🍜',
+            '台灣菜 🇹🇼🍲'
+        ];
+
+        // Show message box
+        function showMessageBox(message) {
+            messageText.textContent = message;
+            messageBox.classList.remove('hidden');
+            // Optional: Add a small animation for the message box
+            messageBox.querySelector('div').classList.add('scale-105');
+            setTimeout(() => {
+                messageBox.querySelector('div').classList.remove('scale-105');
+            }, 100);
+        }
+
+        // Hide message box
+        function hideMessageBox() {
+            messageBox.classList.add('hidden');
+        }
+
+        // Load options from localStorage
+        function loadOptions() {
+            const storedOptions = localStorage.getItem('mealOptions');
+            if (storedOptions) {
+                mealOptions = JSON.parse(storedOptions);
+            }
+        }
+
+        // Save options to localStorage
+        function saveOptions() {
+            localStorage.setItem('mealOptions', JSON.stringify(mealOptions));
+        }
+
+        // Render options list
+        function renderOptions() {
+            optionsList.innerHTML = ''; // Clear existing list
+            if (mealOptions.length === 0) {
+                noOptionsMessage.classList.remove('hidden');
+                optionsList.appendChild(noOptionsMessage); // Ensure message is always there if no options
+            } else {
+                noOptionsMessage.classList.add('hidden');
+                mealOptions.forEach((option, index) => {
+                    const listItem = document.createElement('li');
+                    // Changed to inline-flex for tag-like appearance
+                    listItem.className = 'inline-flex items-center bg-gray-200 text-gray-800 px-4 py-2 rounded-full text-base shadow-sm hover:bg-gray-300 transition duration-150 whitespace-nowrap';
+                    listItem.innerHTML = `
+                        <span class="mr-2">${option}</span>
+                        <button data-index="${index}" class="remove-btn text-gray-600 hover:text-red-600 focus:outline-none focus:ring-0 text-lg leading-none">
+                            ×
+                        </button>
+                    `;
+                    optionsList.appendChild(listItem);
+                });
+            }
+        }
+
+        // Render predefined option buttons
+        function renderPredefinedOptions() {
+            predefinedOptionsDiv.innerHTML = '';
+            predefinedMeals.forEach(meal => {
+                const button = document.createElement('button');
+                button.textContent = meal;
+                button.className = 'add-predefined-btn bg-gray-200 text-gray-800 px-4 py-3 rounded-full text-base hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition duration-200 shadow-sm whitespace-nowrap';
+                predefinedOptionsDiv.appendChild(button);
+            });
+        }
+
+        // Add an option
+        function addOption(option) {
+            const trimmedOption = option.trim();
+            // Remove emojis from the option before checking for duplicates
+            const optionWithoutEmojis = trimmedOption.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE0F}]/gu, '').trim();
+
+            // Check if the option (without emojis) already exists in mealOptions
+            const exists = mealOptions.some(existingOption =>
+                existingOption.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE0F}]/gu, '').trim() === optionWithoutEmojis
+            );
+
+            if (trimmedOption && !exists) {
+                mealOptions.push(trimmedOption);
+                saveOptions();
+                renderOptions();
+                newOptionInput.value = ''; // Clear input field
+                resultDiv.classList.add('hidden'); // Hide result
+            } else if (exists) {
+                showMessageBox('此選項已存在！');
+            } else {
+                showMessageBox('請輸入一個有效的選項！');
+            }
+        }
+
+        // Remove an option
+        function removeOption(index) {
+            mealOptions.splice(index, 1);
+            saveOptions();
+            renderOptions();
+            resultDiv.classList.add('hidden'); // Hide result
+        }
+
+        // Add all predefined options to mealOptions
+        function addAllPredefinedOptions() {
+            let addedCount = 0;
+            predefinedMeals.forEach(meal => {
+                const trimmedMeal = meal.trim();
+                const mealWithoutEmojis = trimmedMeal.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE0F}]/gu, '').trim();
+
+                const exists = mealOptions.some(existingOption =>
+                    existingOption.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE0F}]/gu, '').trim() === mealWithoutEmojis
+                );
+
+                if (!exists) {
+                    mealOptions.push(trimmedMeal);
+                    addedCount++;
+                }
+            });
+            saveOptions();
+            renderOptions();
+            if (addedCount > 0) {
+                showMessageBox(`已加入 ${addedCount} 個新選項！`);
+            } else {
+                showMessageBox('所有預設選項已存在於您的列表中。');
+            }
+            resultDiv.classList.add('hidden'); // Hide result
+        }
+
+        // Remove all options from mealOptions
+        function removeAllOptions() {
+            if (mealOptions.length === 0) {
+                showMessageBox('您的列表中目前沒有選項。');
+                return;
+            }
+            mealOptions = []; // Clear the array
+            saveOptions();
+            renderOptions();
+            resultDiv.classList.add('hidden'); // Hide result
+            showMessageBox('所有選項已移除！');
+        }
+
+        // Pick a random meal
+        function pickRandomMeal() {
+            if (mealOptions.length === 0) {
+                showMessageBox('請先新增一些午餐選項！');
+                resultDiv.classList.add('hidden');
+                return;
+            }
+
+            // Pick a random option
+            const randomIndex = Math.floor(Math.random() * mealOptions.length);
+            const chosenMeal = mealOptions[randomIndex];
+
+            // Display result and show buttons
+            resultDiv.innerHTML = `
+                <div class="text-center">
+                    ${chosenMeal}
+                </div>
+                <div class="flex flex-wrap justify-center gap-3 mt-4">
+                    <button
+                        id="searchGoogleMapsBtn"
+                        class="bg-purple-600 text-white text-base px-4 py-2 rounded-xl hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-200 shadow-md transform hover:scale-105"
+                    >
+                        📍 搜尋附近餐廳 ✨
+                    </button>
+                    <button
+                        id="getGeminiDrinkBtn"
+                        class="bg-teal-600 text-white text-base px-4 py-2 rounded-xl hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition duration-200 shadow-md transform hover:scale-105"
+                    >
+                        ✨ 搭配建議 ✨
+                    </button>
+                </div>
+            `;
+            resultDiv.classList.remove('hidden');
+
+            // Re-attach event listeners to the newly created buttons
+            document.getElementById('searchGoogleMapsBtn').addEventListener('click', () => {
+                searchGoogleMaps(chosenMeal);
+            });
+            document.getElementById('getGeminiDrinkBtn').addEventListener('click', () => {
+                getComplementaryItem(chosenMeal);
+            });
+        }
+
+        // Function to search Google Maps
+        function searchGoogleMaps(mealName) {
+            // Remove emojis from mealName for the search query
+            const mealNameForSearch = mealName.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE0F}]/gu, '').trim();
+            // Encode only the meal name
+            const query = encodeURIComponent(mealNameForSearch);
+            // Construct the standard Google Maps URL
+            const googleMapsUrl = `https://www.google.com/maps/search/${query}`;
+            console.log("Opening Google Maps URL:", googleMapsUrl); // Debugging line
+            window.open(googleMapsUrl, '_blank'); // Open in new tab
+        }
+
+        // Function to get complementary item from Gemini API
+        async function getComplementaryItem(mealName) {
+            const geminiDrinkBtn = document.getElementById('getGeminiDrinkBtn');
+            const originalButtonText = geminiDrinkBtn.textContent;
+            geminiDrinkBtn.textContent = '載入中...';
+            geminiDrinkBtn.disabled = true; // Disable button during loading
+
+            // Remove emojis from mealName for the prompt to avoid confusing the LLM
+            const mealNameForPrompt = mealName.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE0F}]/gu, '').trim();
+
+            try {
+                let chatHistory = [];
+                // Modified prompt to request a concise answer within 200 characters and without bullet points/stars
+                const prompt = `請為我建議一個與 "${mealNameForPrompt}" 搭配的飲品或配菜。請用繁體中文回答，限制在200字以內，不需要使用星號或列表格式。`;
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Canvas will automatically provide the API key at runtime
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    let text = result.candidates[0].content.parts[0].text;
+                    // Further clean up any remaining asterisks or excessive newlines
+                    text = text.replace(/\*+/g, '').replace(/\n\s*\n/g, '\n').trim(); // Remove multiple asterisks and extra newlines
+                    showMessageBox(text); // Display Gemini's response in the message box
+                } else {
+                    showMessageBox('未能獲取搭配建議，請稍後再試。');
+                }
+            } catch (error) {
+                console.error('Error calling Gemini API for complementary item:', error);
+                showMessageBox('獲取搭配建議時發生錯誤。');
+            } finally {
+                geminiDrinkBtn.textContent = originalButtonText; // Restore button text
+                geminiDrinkBtn.disabled = false; // Re-enable button
+            }
+        }
+
+        // Event listeners
+        addOptionBtn.addEventListener('click', () => {
+            addOption(newOptionInput.value);
+        });
+
+        newOptionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addOption(newOptionInput.value);
+            }
+        });
+
+        optionsList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-btn')) {
+                const indexToRemove = parseInt(e.target.dataset.index);
+                removeOption(indexToRemove);
+            }
+        });
+
+        predefinedOptionsDiv.addEventListener('click', (e) => {
+            if (e.target.classList.contains('add-predefined-btn')) {
+                addOption(e.target.textContent);
+            }
+        });
+
+        // Event listener for the "Add All Options" button
+        addAllOptionsBtn.addEventListener('click', addAllPredefinedOptions);
+        // Event listener for the new "Remove All Options" button
+        removeAllOptionsBtn.addEventListener('click', removeAllOptions);
+
+        pickMealBtn.addEventListener('click', pickRandomMeal);
+
+        closeMessageBoxBtn.addEventListener('click', hideMessageBox);
+
+        // Initialization: load options and render list
+        loadOptions();
+        renderOptions();
+        renderPredefinedOptions();
+    </script>
+</body>
+</html>
